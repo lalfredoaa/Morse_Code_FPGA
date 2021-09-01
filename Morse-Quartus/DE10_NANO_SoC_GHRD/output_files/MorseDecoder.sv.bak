@@ -1,0 +1,155 @@
+
+
+
+module MorseDecoder(	
+	
+	// Avalon interface
+	input logic clk, 		
+	input logic rst_n,
+	input logic[3:0] address,
+	output logic [7:0] read_data, 
+	
+	// FPGA input
+	input logic [1:0] button_in,
+	input logic [3:0] switch_in	// connect whole dip switch interface, although we use only one 
+	
+	);
+	
+	
+	parameter DOT = 1'b0;
+	parameter DASH = 1'b1;
+	
+	logic [4:0] buffer_in;			// input buffer to store dash and dots
+	logic [2:0] counter;				// count how many dots and dashes were input
+	
+	// rename inputs
+	logic dot_in, dash_in, done_in;
+	assign dot_in = button_in[0];
+	assign dash_in = button_in[1];
+	assign done_in = switch_in[0];
+	
+	logic [7:0] detected_char;		// detected char after receiving dots and dashes
+	
+	// input buffer logic
+	always_ff @ (posedge dot_in or posedge dash_in) begin
+	
+		if (dot_in) begin 
+			buffer_in[counter] <= DOT;
+		end
+		else if (dash_in) begin
+			buffer_in[counter] <= DASH;
+		end
+		
+		if (counter == 3'd4) begin 
+			counter <= 3'd0;
+		end
+		else begin 
+			counter <= counter + 3'd1;
+		end
+		
+	end
+	
+	
+	always_ff @ (posedge done_in) begin 
+	
+		case (counter)
+			
+			3'd0:
+				begin
+					case (buffer_in[4:0])		// if counter is back to 0, it means we filled the whole buffer
+						{DASH,DASH,DASH,DASH,DASH}: 	detected_char <= "0":
+						{DOT,DASH,DASH,DASH,DASH}: 	detected_char <= "1":
+						{DOT,DOT,DASH,DASH,DASH}: 		detected_char <= "2":
+						{DOT,DOT,DOT,DASH,DASH}: 		detected_char <= "3":
+						{DOT,DOT,DOT,DOT,DASH}: 		detected_char <= "4":
+						{DOT,DOT,DOT,DOT,DOT}: 			detected_char <= "5":
+						{DASH,DOT,DOT,DOT,DOT}: 		detected_char <= "6":
+						{DASH,DASH,DOT,DOT,DOT}: 		detected_char <= "7":
+						{DASH,DASH,DASH,DOT,DOT}: 		detected_char <= "8":
+						{DASH,DASH,DASH,DASH,DOT}: 	detected_char <= "9":
+					endcase
+				end
+			3'd1:
+				begin
+					case (buffer_in[0])
+						{}:	detected_char <= "";
+						{DOT}:	detected_char <= "E";
+					endcase
+				end
+			3'd2:
+				begin
+					case (buffer_in[1:0])
+						{,}:	detected_char <= "";
+						{DOT,DASH}:	detected_char <= "A";
+					endcase
+				end
+			3'd3:
+				begin
+					case (buffer_in[2:0])
+						{,,}:	detected_char <= "";
+						{DASH,DOT,DOT}:	detected_char <= "D";
+					endcase
+				end
+			3'd4:
+				begin
+					case (buffer_in[3:0])
+						{,,,}:	detected_char <= "";
+						{DASH,DOT,DOT,DOT}:	detected_char <= "B";
+						{DASH,DOT,DASH,DOT}:	detected_char <= "C";
+						{DOT,DOT,DASH,DOT}:	detected_char <= "F";
+					endcase
+				end
+			
+		endcase
+	
+	end
+	
+	
+	
+	
+	
+	logic [7:0] register [15:0];
+	logic [3:0] local_address;
+	
+	always_comb begin
+	
+		read_data = register[address];
+		
+	end
+	
+	
+	always_ff @ (posedge button_in or negedge rst_n)  begin
+	
+		if(!rst_n) begin 
+			register[0] <= "a";
+			register[1] <= "b";
+			register[2] <= "c";
+			register[3] <= "d";
+			register[4] <= "e";
+			register[5] <= "f";
+			register[6] <= "g";
+			register[7] <= "h";
+			register[8] <= "i";
+			register[9] <= "j";
+			register[10] <= "k";
+			register[11] <= "l";
+			register[12] <= "m";
+			register[13] <= "n";
+			register[14] <= "o";
+			register[15] <= "p";
+			local_address <= 4'd0;
+		end
+		else begin 
+			register[local_address] <= "z";
+			local_address <= local_address + 4'd1;
+		end
+		
+	end
+	
+	
+endmodule
+
+
+
+
+
